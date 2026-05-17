@@ -68,6 +68,9 @@ func ollamaStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http
 		return nil, types.NewOpenAIError(fmt.Errorf("empty response"), types.ErrorCodeBadResponse, http.StatusBadRequest)
 	}
 	defer service.CloseResponseBodyGracefully(resp)
+	defer func() {
+		_ = helper.ForceFlush(c)
+	}()
 
 	helper.SetEventStreamHeaders(c)
 	scanner := bufio.NewScanner(resp.Body)

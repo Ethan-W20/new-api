@@ -96,6 +96,9 @@ func OaiResponsesToChatStreamHandler(c *gin.Context, info *relaycommon.RelayInfo
 	}
 
 	defer service.CloseResponseBodyGracefully(resp)
+	defer func() {
+		_ = helper.ForceFlush(c)
+	}()
 
 	responseId := helper.GetResponseID(c)
 	createAt := time.Now().Unix()

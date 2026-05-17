@@ -1327,6 +1327,10 @@ func geminiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http
 }
 
 func GeminiChatStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Response) (*dto.Usage, *types.NewAPIError) {
+	defer func() {
+		_ = helper.ForceFlush(c)
+	}()
+
 	id := helper.GetResponseID(c)
 	createAt := common.GetTimestamp()
 	finishReason := constant.FinishReasonStop

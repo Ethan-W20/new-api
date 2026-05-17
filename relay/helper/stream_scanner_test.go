@@ -469,6 +469,39 @@ func TestStreamScannerHandler_StreamStatus_EOFWithoutDone(t *testing.T) {
 	assert.True(t, info.StreamStatus.IsNormalEnd())
 }
 
+func TestStreamScannerHandler_ForceFlushesEOFWithoutDone(t *testing.T) {
+	oldTimeout := constant.StreamingTimeout
+	constant.StreamingTimeout = 30
+	t.Cleanup(func() {
+		constant.StreamingTimeout = oldTimeout
+	})
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	resp := &http.Response{
+		Body: io.NopCloser(strings.NewReader("data: {\"id\":1}\n")),
+	}
+	info := &relaycommon.RelayInfo{
+		ChannelMeta: &relaycommon.ChannelMeta{},
+	}
+	writeErr := make(chan error, 1)
+
+	StreamScannerHandler(c, resp, info, func(data string, sr *StreamResult) {
+		err := StringData(c, data)
+		if err != nil {
+			sr.Error(err)
+		}
+		writeErr <- err
+	})
+
+	require.NoError(t, <-writeErr)
+	assert.True(t, recorder.Flushed)
+	assert.Contains(t, recorder.Body.String(), "data: {\"id\":1}")
+	require.NotNil(t, info.StreamStatus)
+	assert.Equal(t, relaycommon.StreamEndReasonEOF, info.StreamStatus.EndReason)
+}
+
 func TestStreamScannerHandler_StreamStatus_HandlerStop(t *testing.T) {
 	t.Parallel()
 
